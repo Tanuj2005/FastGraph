@@ -5,7 +5,7 @@
 
 template< typename T, size_t BlockSize = 4096 >
 class PoolAllocator {
-
+public:
     // Constructor
     PoolAllocator() {
         grow() ;
@@ -67,6 +67,6 @@ private:
         free_list_ = block ;
     }
 
-    SLot* free_list_ = nullptr ;
+    Slot* free_list_ = nullptr ;
     std::vector<void*> blocks_ ;
 };
