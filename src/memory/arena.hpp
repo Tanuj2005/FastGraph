@@ -18,7 +18,7 @@ public:
         free( buf_ ) ;
     }
 
-    // Making sure the Arena object can not be coppied 
+    // Making sure the Arena object can not be coppied by disabling the copy constructor
 
     Arena( const Arena& ) = delete ;
     Arena& operator = ( const Arena& ) = delete ;
