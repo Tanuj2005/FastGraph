@@ -5,7 +5,7 @@
 RobinHoodMap::RobinHoodMap( size_t initial ) {
     capacity_ = next_pow2( initial ) ;
     mask_ = capacity_ - 1 ;
-    entries_ = new Entry[capacity_] ;
+    entries_ = new Entry[capacity_]() ;
     clear_all() ;
 }
 
@@ -16,7 +16,6 @@ bool RobinHoodMap::set( const std::string& key, const std::string& val ) {
 
     uint32_t h = hash( key ) ;
     uint32_t idx = h & mask_ ;
-    uint32_t dib = 0 ;
 
     Entry incoming ;
     incoming.hash = h ;
@@ -29,7 +28,6 @@ bool RobinHoodMap::set( const std::string& key, const std::string& val ) {
 
         if ( slot.empty() ) {
             slot = std::move( incoming ) ;
-            slot.dib = dib ;
             size_++ ;
             return true ;
         }
@@ -39,13 +37,12 @@ bool RobinHoodMap::set( const std::string& key, const std::string& val ) {
             return false ;
         }
 
-        if ( dib > slot.dib ) {
+        if ( incoming.dib > slot.dib ) {
             std::swap( incoming, slot ) ;
-            dib = incoming.dib ;
         }
 
         idx = ( idx + 1 ) & mask_ ;
-        dib++ ;
+        incoming.dib++ ;
     }
 }
 
@@ -89,9 +86,8 @@ void RobinHoodMap::erase_at(uint32_t idx) {
         uint32_t next = (idx + 1) & mask_;
         Entry&   nx   = entries_[next];
         if (nx.empty() || nx.dib == 0) {
+            entries_[idx] = Entry{};        // full reset — calls string destructors
             entries_[idx].hash = EMPTY;
-            entries_[idx].key.clear();
-            entries_[idx].val.clear();
             return;
         }
         entries_[idx] = std::move(nx);
@@ -101,15 +97,42 @@ void RobinHoodMap::erase_at(uint32_t idx) {
 }
 
 void RobinHoodMap::grow() {
-    size_t  old_cap = capacity_;
-    Entry*  old     = entries_;
+    size_t old_cap = capacity_;
+    Entry* old     = entries_;
+
     capacity_ = old_cap * 2;
     mask_     = capacity_ - 1;
-    entries_  = new Entry[capacity_];
+    entries_  = new Entry[capacity_]();
     clear_all();
     size_ = 0;
-    for (size_t i = 0; i < old_cap; i++)
-        if (!old[i].empty()) set(old[i].key, old[i].val);
+
+    for (size_t i = 0; i < old_cap; i++) {
+        if (old[i].empty()) continue;
+
+        // Inline insert — no load factor check, no recursive grow
+        uint32_t h   = old[i].hash;
+        uint32_t idx = h & mask_;
+
+        Entry incoming;
+        incoming.hash = h;
+        incoming.dib  = 0;
+        incoming.key  = std::move(old[i].key);
+        incoming.val  = std::move(old[i].val);
+
+        while (true) {
+            Entry& slot = entries_[idx];
+            if (slot.empty()) {
+                slot     = std::move(incoming);
+                size_++;
+                break;
+            }
+            if (incoming.dib > slot.dib) {
+                std::swap(incoming, slot);
+            }
+            idx = (idx + 1) & mask_;
+            incoming.dib++;
+        }
+    }
     delete[] old;
 }
 
