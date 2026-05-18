@@ -54,3 +54,11 @@ foreach(TEST_FILE ${TEST_SOURCES})
     target_include_directories(${TEST_NAME} PRIVATE src/)
     add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
 endforeach()
+
+# Benchmarks
+file(GLOB BENCH_SOURCES "bench/*.cpp")
+foreach(BENCH_FILE ${BENCH_SOURCES})
+    get_filename_component(BENCH_NAME ${BENCH_FILE} NAME_WE)
+    add_executable(${BENCH_NAME} ${BENCH_FILE})
+    target_include_directories(${BENCH_NAME} PRIVATE src/)
+endforeach()

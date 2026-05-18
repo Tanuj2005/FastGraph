@@ -4,6 +4,7 @@
 #include "kv/kv_engine.hpp"
 #include "dispatch/dispatcher.hpp"
 #include <unordered_map>
+#include "graph/graph_engine.hpp"
 
 class Server {
 public:
@@ -26,6 +27,7 @@ private:
     int         listen_fd_;
     Reactor     reactor_;
     KVEngine    kv_;
+    GraphEngine graph_;
     Dispatcher  dispatcher_;
     std::unordered_map<int, Conn*> conns_;
 };

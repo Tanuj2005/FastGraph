@@ -1,15 +1,22 @@
 #pragma once
 #include "kv/kv_engine.hpp"
+#include "graph/graph_engine.hpp"
 #include <string>
 #include <vector>
 
 class Dispatcher {
 public:
-    explicit Dispatcher(KVEngine& kv) : kv_(kv) {}
+    explicit Dispatcher(KVEngine& kv, GraphEngine& graph)
+        : kv_(kv), graph_(graph) {}
     std::string dispatch(const std::vector<std::string>& args);
 
 private:
     std::string handle_kv(const std::string& cmd,
                           const std::vector<std::string>& args);
+
+    std::string handle_graph(const std::string& cmd,
+                              const std::vector<std::string>& args);
+
     KVEngine& kv_;
+    GraphEngine& graph_;
 };

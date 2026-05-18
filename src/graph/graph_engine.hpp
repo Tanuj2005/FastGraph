@@ -33,6 +33,9 @@ public:
     // Get compacted CSR — compacts if dirty
     const CSRGraph& csr();
 
+    
+    const DynamicGraph& graph_ref() const { return graph_; }
+
     int node_count() const { return graph_.node_count(); }
     int edge_count() const { return graph_.edge_count(); }
 
