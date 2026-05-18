@@ -48,10 +48,9 @@ public:
         epoll_ctl( epfd_, EPOLL_CTL_MOD, fd, &ev ) ;
     }
 
-    void remove( int fd, uint32_t events ) {
-        handlers_.erase( fd ) ;
-        epoll_ctl( epfd_, EPOLL_CTL_DEL, fd, nullptr ) ;
-
+    void remove(int fd) {
+        handlers_.erase(fd);
+        epoll_ctl(epfd_, EPOLL_CTL_DEL, fd, nullptr);
     }
 
     void add_timer( int delay_ms, std::function<void()> cb ) {

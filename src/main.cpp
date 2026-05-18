@@ -1,6 +1,8 @@
+#include "net/server.hpp"
 #include <cstdio>
 
 int main() {
-    printf("fastgraph starting...\n");
+    Server server(6379);
+    server.start();
     return 0;
 }
