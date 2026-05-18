@@ -33,7 +33,16 @@ set(KV_SOURCES
 # Map each test to the sources it needs
 set(test_resp_EXTRA       ${PROTOCOL_SOURCES})
 set(test_hashmap_EXTRA    ${KV_SOURCES})
-set(test_graph_EXTRA      "")
+set(GRAPH_SOURCES
+    src/graph/dynamic_graph.cpp
+    src/graph/csr_graph.cpp
+    src/graph/graph_engine.cpp
+    src/graph/bfs.cpp
+    src/graph/dfs.cpp
+    src/graph/dijkstra.cpp
+)
+
+set(test_graph_EXTRA ${GRAPH_SOURCES})
 set(test_skiplist_EXTRA   "")
 set(test_ttl_EXTRA        ${KV_SOURCES})
 set(test_integration_EXTRA ${PROTOCOL_SOURCES} ${KV_SOURCES})

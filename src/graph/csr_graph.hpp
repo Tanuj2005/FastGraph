@@ -37,3 +37,6 @@ struct CSRGraph {
         return id_to_idx[id];
     }
 };
+
+class DynamicGraph;  // forward declare
+CSRGraph build_csr(const DynamicGraph& g);
