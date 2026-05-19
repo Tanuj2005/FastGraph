@@ -260,6 +260,32 @@ std::string Dispatcher::handle_graph(const std::string& cmd,
             return RespEncoder::array(out);
         }
 
+        // GRAPH.INDEX_PROP id label prop value
+        if (cmd == "GRAPH.INDEX_PROP" && args.size() >= 5) {
+            graph_.index_property(args[2], args[3],
+                                std::stod(args[4]),
+                                std::stoi(args[1]));
+            return RespEncoder::simple_string("OK");
+        }
+
+        // GRAPH.RANGE label prop min max
+        if (cmd == "GRAPH.RANGE" && args.size() >= 5) {
+            auto ids = graph_.range_query(args[1], args[2],
+                                        std::stod(args[3]),
+                                        std::stod(args[4]));
+            std::vector<std::string> out;
+            for (int id : ids) out.push_back(std::to_string(id));
+            return RespEncoder::array(out);
+        }
+
+        // GRAPH.EXACT label prop value
+        if (cmd == "GRAPH.EXACT" && args.size() >= 4) {
+            auto ids = graph_.exact_query(args[1], args[2], std::stod(args[3]));
+            std::vector<std::string> out;
+            for (int id : ids) out.push_back(std::to_string(id));
+            return RespEncoder::array(out);
+        }
+
     } catch (const std::exception& e) {
         return RespEncoder::error(std::string("bad args: ") + e.what());
     }

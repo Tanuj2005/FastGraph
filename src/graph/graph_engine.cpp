@@ -1,5 +1,6 @@
 #include "graph/graph_engine.hpp"
 #include <algorithm>
+#include "index/property_index.hpp"
 
 void GraphEngine::add_node(int id, const std::string& label,
                             const std::string& props) {
@@ -12,9 +13,11 @@ void GraphEngine::remove_node(int id) {
     if (meta) {
         auto& ids = label_index_[meta->label];
         ids.erase(std::remove(ids.begin(), ids.end(), id), ids.end());
+        prop_index_.remove_node(meta->label, id);  // ← add this line
     }
     graph_.remove_node(id);
 }
+
 
 void GraphEngine::add_edge(int from, int to, const std::string& rel,
                             float weight) {
@@ -39,4 +42,25 @@ const CSRGraph& GraphEngine::csr() {
 void GraphEngine::compact() {
     csr_ = build_csr(graph_);
     graph_.clear_dirty();
+}
+
+// Add to bottom of graph_engine.cpp
+
+std::vector<int> GraphEngine::range_query(const std::string& label,
+                                           const std::string& prop,
+                                           double min_val,
+                                           double max_val) const {
+    return prop_index_.range(label, prop, min_val, max_val);
+}
+
+std::vector<int> GraphEngine::exact_query(const std::string& label,
+                                           const std::string& prop,
+                                           double value) const {
+    return prop_index_.exact(label, prop, value);
+}
+
+void GraphEngine::index_property(const std::string& label,
+                                  const std::string& prop,
+                                  double value, int node_id) {
+    prop_index_.add(label, prop, value, node_id);
 }

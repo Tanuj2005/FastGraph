@@ -41,11 +41,28 @@ set(GRAPH_SOURCES
     src/graph/dfs.cpp
     src/graph/dijkstra.cpp
 )
+set(INDEX_SOURCES
+    src/index/skiplist.cpp
+    src/index/property_index.cpp
+)
 
-set(test_graph_EXTRA ${GRAPH_SOURCES})
-set(test_skiplist_EXTRA   "")
+set(GRAPH_SOURCES
+    src/graph/dynamic_graph.cpp
+    src/graph/csr_graph.cpp
+    src/graph/graph_engine.cpp
+    src/graph/bfs.cpp
+    src/graph/dfs.cpp
+    src/graph/dijkstra.cpp
+    ${INDEX_SOURCES}
+)
+
+set(test_graph_EXTRA      ${GRAPH_SOURCES})
+set(test_skiplist_EXTRA   ${INDEX_SOURCES})
+
 set(test_ttl_EXTRA        ${KV_SOURCES})
 set(test_integration_EXTRA ${PROTOCOL_SOURCES} ${KV_SOURCES})
+
+
 
 file(GLOB TEST_SOURCES "tests/*.cpp")
 foreach(TEST_FILE ${TEST_SOURCES})

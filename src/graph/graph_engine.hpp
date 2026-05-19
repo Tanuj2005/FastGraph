@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include "index/property_index.hpp"
 
 class GraphEngine {
 public:
@@ -39,6 +40,19 @@ public:
     int node_count() const { return graph_.node_count(); }
     int edge_count() const { return graph_.edge_count(); }
 
+    // Range query on numeric property
+    std::vector<int> range_query(const std::string& label,
+                                const std::string& prop,
+                                double min_val, double max_val) const;
+
+    std::vector<int> exact_query(const std::string& label,
+                                const std::string& prop,
+                                double value) const;
+
+    // Index a numeric property manually
+    void index_property(const std::string& label, const std::string& prop,
+                        double value, int node_id);
+
 private:
     void compact();
 
@@ -47,4 +61,5 @@ private:
 
     // Label → node ids index
     std::unordered_map<std::string, std::vector<int>> label_index_;
+    PropertyIndex prop_index_;
 };
