@@ -5,6 +5,7 @@
 #include "dispatch/dispatcher.hpp"
 #include <unordered_map>
 #include "graph/graph_engine.hpp"
+#include "sorted_set/sorted_set_engine.hpp"
 
 class Server {
 public:
@@ -29,5 +30,6 @@ private:
     KVEngine    kv_;
     GraphEngine graph_;
     Dispatcher  dispatcher_;
+    SortedSetEngine zsets_;
     std::unordered_map<int, Conn*> conns_;
 };

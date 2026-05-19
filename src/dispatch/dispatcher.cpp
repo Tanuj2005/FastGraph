@@ -16,6 +16,8 @@ std::string Dispatcher::dispatch(const std::vector<std::string>& args) {
     if (args.empty()) return RespEncoder::error("empty command");
     std::string cmd = to_upper(args[0]);
     if (cmd.substr(0, 6) == "GRAPH.") return handle_graph(cmd, args);
+    if (cmd[0] == 'Z')               return handle_zset(cmd, args);
+
     return handle_kv(cmd, args);
 }
 
@@ -291,4 +293,70 @@ std::string Dispatcher::handle_graph(const std::string& cmd,
     }
 
     return RespEncoder::error("unknown graph command '" + args[0] + "'");
+}
+
+std::string Dispatcher::handle_zset(const std::string& cmd,
+                                     const std::vector<std::string>& args) {
+    try {
+        // ZADD key score member
+        if (cmd == "ZADD" && args.size() >= 4) {
+            int added = zsets_.zadd(args[1], std::stod(args[2]), args[3]);
+            return RespEncoder::integer(added);
+        }
+
+        // ZREM key member
+        if (cmd == "ZREM" && args.size() >= 3) {
+            return RespEncoder::integer(
+                zsets_.zrem(args[1], args[2]) ? 1 : 0);
+        }
+
+        // ZSCORE key member
+        if (cmd == "ZSCORE" && args.size() >= 3) {
+            auto sc = zsets_.zscore(args[1], args[2]);
+            return sc ? RespEncoder::bulk_string(std::to_string(*sc))
+                      : RespEncoder::null_bulk();
+        }
+
+        // ZRANGE key start stop [WITHSCORES]
+        if (cmd == "ZRANGE" && args.size() >= 4) {
+            bool with_scores = args.size() >= 5 &&
+                               to_upper(args[4]) == "WITHSCORES";
+            auto results = zsets_.zrange(args[1],
+                                          std::stoi(args[2]),
+                                          std::stoi(args[3]));
+            std::vector<std::string> out;
+            for (auto& [score, member] : results) {
+                out.push_back(member);
+                if (with_scores) out.push_back(std::to_string(score));
+            }
+            return RespEncoder::array(out);
+        }
+
+        // ZRANGEBYSCORE key min max
+        if (cmd == "ZRANGEBYSCORE" && args.size() >= 4) {
+            auto results = zsets_.zrangebyscore(args[1],
+                                                 std::stod(args[2]),
+                                                 std::stod(args[3]));
+            std::vector<std::string> out;
+            for (auto& [score, member] : results) {
+                out.push_back(member);
+                out.push_back(std::to_string(score));
+            }
+            return RespEncoder::array(out);
+        }
+
+        // ZCARD key
+        if (cmd == "ZCARD" && args.size() >= 2)
+            return RespEncoder::integer(zsets_.zcard(args[1]));
+
+        // ZRANK key member
+        if (cmd == "ZRANK" && args.size() >= 3)
+            return RespEncoder::integer(
+                zsets_.zrank(args[1], args[2]));
+
+    } catch (const std::exception& e) {
+        return RespEncoder::error(std::string("bad args: ") + e.what());
+    }
+
+    return RespEncoder::error("unknown command '" + args[0] + "'");
 }

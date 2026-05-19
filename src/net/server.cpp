@@ -8,7 +8,7 @@
 #include <cerrno>
 
 Server::Server(int port)
-    : port_(port), listen_fd_(-1), dispatcher_(kv_, graph_) {}
+    : port_(port), listen_fd_(-1), dispatcher_(kv_, graph_, zsets_) {}
 
 void Server::start() {
     listen_fd_ = make_listen_fd(port_);
