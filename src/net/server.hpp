@@ -6,10 +6,11 @@
 #include <unordered_map>
 #include "graph/graph_engine.hpp"
 #include "sorted_set/sorted_set_engine.hpp"
+#include "thread/thread_pool.hpp"
 
 class Server {
 public:
-    explicit Server(int port);
+    explicit Server(int port, size_t num_threads = 4);
     void start();
 
 private:
@@ -31,5 +32,6 @@ private:
     GraphEngine graph_;
     Dispatcher  dispatcher_;
     SortedSetEngine zsets_;
+    ThreadPool pool_;
     std::unordered_map<int, Conn*> conns_;
 };

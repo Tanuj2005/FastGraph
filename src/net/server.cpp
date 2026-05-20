@@ -7,8 +7,8 @@
 #include <cstdio>
 #include <cerrno>
 
-Server::Server(int port)
-    : port_(port), listen_fd_(-1), dispatcher_(kv_, graph_, zsets_) {}
+Server::Server(int port, size_t num_threads)
+    : port_(port), listen_fd_(-1), dispatcher_(kv_, graph_, zsets_), pool_(num_threads)  {}
 
 void Server::start() {
     listen_fd_ = make_listen_fd(port_);
@@ -70,6 +70,33 @@ void Server::try_parse(Conn* c) {
             c->state = ConnState::Closing;
             break;
         }
+
+        // Offload heavy graph traversals to thread pool
+        std::string cmd = args.empty() ? "" : args[0];
+        for (auto& ch : cmd) ch = toupper(ch);
+
+        bool heavy = (cmd == "GRAPH.PATH"   ||
+                      cmd == "GRAPH.WPATH"  ||
+                      cmd == "GRAPH.DISTANCES" ||
+                      cmd == "GRAPH.COMPONENT" ||
+                      cmd == "GRAPH.NEIGHBORHOOD");
+
+        if (heavy) {
+            int fd = c->fd;
+            pool_.submit([this, args, c]() {
+                std::string result = dispatcher_.dispatch(args);
+                reactor_.post([this, c, result]() {
+                    // Check conn still alive
+                    if (conns_.find(c->fd) == conns_.end()) return;
+                    c->write_buf += result;
+                    c->state = ConnState::Writing;
+                    reactor_.modify(c->fd, EPOLLIN | EPOLLOUT);
+                });
+            });
+            // Don't add to write_buf here — async
+            continue;
+        }
+
         c->write_buf += dispatcher_.dispatch(args);
     }
     if (!c->write_buf.empty()) {

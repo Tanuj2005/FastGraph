@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <chrono>
 #include <queue>
+#include <sys/eventfd.h>
+#include <mutex>
 
 using Handler = std::function<void( int, uint32_t )> ;
 using Ms = int64_t ;
@@ -24,11 +26,17 @@ class Reactor {
 public:
     Reactor() {
         epfd_ = epoll_create1( EPOLL_CLOEXEC ) ;
+        event_fd_ = eventfd(0, EFD_NONBLOCK);
+        // Register it with epoll
+        epoll_event ev{};
+        ev.events  = EPOLLIN;
+        ev.data.fd = event_fd_;
+        epoll_ctl(epfd_, EPOLL_CTL_ADD, event_fd_, &ev);
         if ( epfd_ < 0 ) throw std::runtime_error( "epoll_create1 failed" ) ;
 
     }
 
-    ~Reactor() { close( epfd_ ) ; }
+    ~Reactor() { close( epfd_ ) ; close(event_fd_); }
 
     Reactor( const Reactor& ) = delete ;
     Reactor& operator = ( const Reactor& ) = delete ;
@@ -70,12 +78,37 @@ public:
         fire_timers() ;
         for ( int i = 0 ; i <  n ; i++ ) {
             int fd = events[i].data.fd ;
+            if (fd == event_fd_) {
+                // Drain eventfd
+                uint64_t val;
+                read(event_fd_, &val, sizeof(val));
+                // Run all posted callbacks
+                std::queue<std::function<void()>> pending;
+                {
+                    std::unique_lock<std::mutex> lock(post_mutex_);
+                    std::swap(pending, posted_);
+                }
+                while (!pending.empty()) {
+                    pending.front()();
+                    pending.pop();
+                }
+                continue;
+            }
             auto it = handlers_.find( fd ) ;
             if ( it != handlers_.end() )
                 it->second( fd, events[i].events ) ;
         }
     }
-
+    // Post a callback to run on the event loop thread (thread-safe)
+    void post(std::function<void()> cb) {
+        {
+            std::unique_lock<std::mutex> lock(post_mutex_);
+            posted_.push(std::move(cb));
+        }
+        // Wake epoll
+        uint64_t val = 1;
+        write(event_fd_, &val, sizeof(val));
+    }
     void run() { running_ = true; while ( running_ ) poll() ; }
     void stop() { running_ = false ; }
 
@@ -91,6 +124,9 @@ private:
 
     int epfd_ ;
     bool running_ = false ;
+    int                               event_fd_ = -1;
+    std::queue<std::function<void()>> posted_;
+    mutable std::mutex                post_mutex_;
     std::unordered_map<int, Handler> handlers_ ;
     std::priority_queue<Timer, std::vector<Timer>, std::greater<Timer>> timers_ ;
 
