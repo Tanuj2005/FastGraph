@@ -130,7 +130,7 @@ std::string Dispatcher::handle_graph(const std::string& cmd,
         if (cmd == "GRAPH.NODE" && args.size() >= 2) {
             auto* meta = graph_.node_meta(std::stoi(args[1]));
             if (!meta) return RespEncoder::null_bulk();
-            std::vector<std::string> out = {"label", meta->label,
+            std::vector<std::string> out = {"label", std::string(meta->label_ptr),
                                             "props", meta->props};
             return RespEncoder::array(out);
         }
@@ -184,7 +184,10 @@ std::string Dispatcher::handle_graph(const std::string& cmd,
             int src = std::stoi(args[1]);
             int dst = std::stoi(args[2]);
             std::string rel = args.size() >= 4 ? args[3] : "";
-            auto path = bfs_path(graph_.graph_ref(), src, dst, rel);
+            
+            graph_.reset_query_arena();
+            auto path = bfs_path(graph_.graph_ref(), src, dst, rel, graph_.get_query_arena());
+            
             if (path.empty()) return RespEncoder::null_bulk();
             std::vector<std::string> out;
             for (int id : path.nodes) out.push_back(std::to_string(id));

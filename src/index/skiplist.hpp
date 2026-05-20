@@ -4,17 +4,21 @@
 #include <optional>
 #include <random>
 #include <unordered_map> 
+#include "memory/slab.hpp"
 
 static constexpr int SKIP_MAX_LEVEL = 16 ;
 
 struct SkipNode {
     double score ;
     std::string member ;
+    int level ; // Added level field
     SkipNode* forward[1] ;
 
     static SkipNode* make( int levels, double score, const std::string& member ) ;
 
     static void free( SkipNode* n ) ;
+    
+    static SlabAllocator slab_ ;
 };
 
 class SkipList {

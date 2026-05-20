@@ -41,7 +41,7 @@ void Server::on_accept() {
         int fd = accept(listen_fd_, nullptr, nullptr);
         if (fd < 0) break;
         set_nonblocking(fd);
-        Conn* c = new Conn(fd);
+        Conn* c = conn_pool_.make(fd); 
         conns_[fd] = c;
         reactor_.add(fd, EPOLLIN, [this](int fd, uint32_t events) {
             on_io(fd, events);
@@ -139,7 +139,7 @@ void Server::close_conn(Conn* c) {
     reactor_.remove(c->fd);
     close(c->fd);
     conns_.erase(c->fd);
-    delete c;
+    conn_pool_.destroy(c);   
 }
 
 void Server::schedule_tick() {

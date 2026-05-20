@@ -3,9 +3,10 @@
 
 const std::vector<Edge> DynamicGraph::kEmpty ;
 
-void DynamicGraph::add_node( int id, const std::string& label, const std::string& props ) {
+void DynamicGraph::add_node( int id, const char* label_ptr, const std::string& props ) {
 
-    meta_[id] = { label, props } ;
+    meta_[id] = { label_ptr, props } ;
+    if (id > max_node_id_) max_node_id_ = id;
     if ( adj_.find( id ) == adj_.end() ) adj_[id] = {} ;
     if ( radj_.find( id ) == radj_.end() ) radj_[id] = {} ;
     dirty_ = true ;

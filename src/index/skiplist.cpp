@@ -4,19 +4,24 @@
 #include <new>
 #include <random>
 
+SlabAllocator SkipNode::slab_;
 
 SkipNode* SkipNode::make( int levels, double score, const std::string& member ) {
     size_t sz = sizeof(SkipNode) + sizeof( SkipNode* ) * (levels - 1 ) ;
-    auto* n = static_cast<SkipNode*>(::operator new(sz)) ;
+    void* mem = SkipNode::slab_.allocate(sz);
+    auto* n   = static_cast<SkipNode*>(mem);
     n->score = score ;
+    n->level = levels ; // store actual level
     new ( &n->member ) std::string( member ) ;
     for ( int i = 0 ; i < levels ; i++ ) n->forward[i] = nullptr ;
     return n ;
 }
 
 void SkipNode::free( SkipNode* n ) {
+    int actual_level = n->level;
     n->member.~basic_string() ;
-    ::operator delete(n) ;
+    SkipNode::slab_.deallocate(n, sizeof(SkipNode) +
+        sizeof(SkipNode*) * (actual_level - 1));
 }
 
 SkipList::SkipList() : level_(1), size_(0) {

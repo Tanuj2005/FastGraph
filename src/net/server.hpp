@@ -9,6 +9,7 @@
 #include "thread/thread_pool.hpp"
 #include "persistence/persistence.hpp"
 #include "config/config.hpp"
+#include "memory/pool_allocator.hpp"
 
 class Server {
 public:
@@ -38,5 +39,6 @@ private:
     ThreadPool pool_;
     Persistence persistence_;
     Config cfg_;
+    PoolAllocator<Conn> conn_pool_;
     std::unordered_map<int, Conn*> conns_;
 };

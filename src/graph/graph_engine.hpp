@@ -5,6 +5,8 @@
 #include <vector>
 #include <unordered_map>
 #include "index/property_index.hpp"
+#include "memory/arena.hpp"
+#include "memory/string_pool.hpp"
 
 #include <tuple>
 
@@ -39,6 +41,9 @@ public:
     
     const DynamicGraph& graph_ref() const { return graph_; }
 
+    void reset_query_arena() { query_arena_.reset(); }
+    Arena* get_query_arena() { return &query_arena_; }
+
     int node_count() const { return graph_.node_count(); }
     int edge_count() const { return graph_.edge_count(); }
 
@@ -64,7 +69,8 @@ private:
     DynamicGraph graph_;
     CSRGraph     csr_;
 
-    // Label → node ids index
-    std::unordered_map<std::string, std::vector<int>> label_index_;
+    Arena query_arena_{4 * 1024 * 1024};  // 4MB reused per query
+    mutable StringPool label_pool_;
+
     PropertyIndex prop_index_;
 };

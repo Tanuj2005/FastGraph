@@ -4,16 +4,14 @@
 
 void GraphEngine::add_node(int id, const std::string& label,
                             const std::string& props) {
-    graph_.add_node(id, label, props);
-    label_index_[label].push_back(id);
+    const char* interned = label_pool_.intern(label);
+    graph_.add_node(id, interned, props);
 }
 
 void GraphEngine::remove_node(int id) {
     auto* meta = graph_.node_meta(id);
     if (meta) {
-        auto& ids = label_index_[meta->label];
-        ids.erase(std::remove(ids.begin(), ids.end(), id), ids.end());
-        prop_index_.remove_node(meta->label, id);  // ← add this line
+        prop_index_.remove_node(meta->label_ptr, id);  // ← add this line
     }
     graph_.remove_node(id);
 }
@@ -29,9 +27,14 @@ void GraphEngine::remove_edge(int from, int to, const std::string& rel) {
 }
 
 std::vector<int> GraphEngine::nodes_by_label(const std::string& label) const {
-    auto it = label_index_.find(label);
-    if (it == label_index_.end()) return {};
-    return it->second;
+    const char* target_ptr = label_pool_.intern(label); 
+    std::vector<int> result;
+    for (const auto& [id, meta] : graph_.all_meta()) {
+        if (meta.label_ptr == target_ptr) {
+            result.push_back(id);
+        }
+    }
+    return result;
 }
 
 const CSRGraph& GraphEngine::csr() {
@@ -69,7 +72,7 @@ std::vector<std::tuple<int,std::string,std::string>>
 GraphEngine::all_nodes() const {
     std::vector<std::tuple<int,std::string,std::string>> result;
     for (auto& [id, meta] : graph_.all_meta())
-        result.push_back({id, meta.label, meta.props});
+        result.push_back({id, std::string(meta.label_ptr), meta.props});
     return result;
 }
 

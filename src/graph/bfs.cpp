@@ -4,43 +4,75 @@
 #include <algorithm>
 
 PathResult bfs_path(const DynamicGraph& g, int source, int target,
-                    const std::string& rel_filter) {
+                    const std::string& rel_filter, Arena* arena) {
     if (source == target) return {{source}, {}};
 
-    std::unordered_map<int,int>         parent;
-    std::unordered_map<int,std::string> via_rel;
-    std::unordered_map<int,bool>        visited;
-    std::queue<int> queue;
+    int max_node_id = g.max_node_id();
 
-    queue.push(source);
+    int* parent = arena 
+        ? arena->alloc_array<int>(max_node_id + 1)
+        : new int[max_node_id + 1];
+
+    const std::string** via_rel = arena 
+        ? arena->alloc_array<const std::string*>(max_node_id + 1)
+        : new const std::string*[max_node_id + 1];
+
+    bool* visited = arena
+        ? arena->alloc_array<bool>(max_node_id + 1)
+        : new bool[max_node_id + 1]();
+
+    if (arena) {
+        std::fill(visited, visited + max_node_id + 1, false);
+    } else {
+        std::fill(visited, visited + max_node_id + 1, false);
+    }
+    
+    // Custom queue using arena
+    int* my_queue = arena 
+        ? arena->alloc_array<int>(max_node_id + 1)
+        : new int[max_node_id + 1];
+    
+    int head = 0, tail = 0;
+
+    my_queue[tail++] = source;
     visited[source] = true;
     parent[source]  = -1;
 
-    while (!queue.empty()) {
-        int node = queue.front(); queue.pop();
+    PathResult path;
+
+    while (head < tail) {
+        int node = my_queue[head++];
 
         for (auto& edge : g.neighbors(node)) {
             if (!rel_filter.empty() && edge.rel_type != rel_filter) continue;
             if (visited[edge.to]) continue;
             visited[edge.to] = true;
             parent[edge.to]  = node;
-            via_rel[edge.to] = edge.rel_type;
+            via_rel[edge.to] = &edge.rel_type;
 
             if (edge.to == target) {
-                PathResult path;
                 for (int cur = target; cur != -1; cur = parent[cur]) {
                     path.nodes.push_back(cur);
                     if (parent[cur] != -1)
-                        path.rels.push_back(via_rel[cur]);
+                        path.rels.push_back(*via_rel[cur]);
                 }
                 std::reverse(path.nodes.begin(), path.nodes.end());
                 std::reverse(path.rels.begin(),  path.rels.end());
-                return path;
+                break;
             }
-            queue.push(edge.to);
+            my_queue[tail++] = edge.to;
         }
+        if (!path.empty()) break;
     }
-    return {};
+
+    if (!arena) {
+        delete[] parent;
+        delete[] via_rel;
+        delete[] visited;
+        delete[] my_queue;
+    }
+
+    return path;
 }
 
 std::vector<HopResult> bfs_neighborhood(const DynamicGraph& g, int source,

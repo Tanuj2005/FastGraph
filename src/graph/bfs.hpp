@@ -1,6 +1,7 @@
 #pragma once
 #include "graph/dynamic_graph.hpp"
 #include "graph/csr_graph.hpp"
+#include "memory/arena.hpp"
 #include <vector>
 #include <string>
 #include <unordered_map>
@@ -20,7 +21,8 @@ struct HopResult {
 
 // Shortest path (unweighted) — early exit at target
 PathResult bfs_path(const DynamicGraph& g, int source, int target,
-                    const std::string& rel_filter = "");
+                    const std::string& rel_filter = "",
+                    Arena* arena = nullptr);
 
 // All nodes within max_hops of source
 std::vector<HopResult> bfs_neighborhood(const DynamicGraph& g, int source,

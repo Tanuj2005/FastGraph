@@ -61,7 +61,7 @@ CSRGraph build_csr(const DynamicGraph& g) {
     for (auto& [id, meta] : g.all_meta()) {
         int idx = csr.to_idx(id);
         if (idx < 0) continue;
-        csr.labels[idx] = meta.label;
+        csr.labels[idx] = std::string(meta.label_ptr);
         csr.props[idx]  = meta.props;
     }
 
