@@ -353,6 +353,24 @@ std::string Dispatcher::handle_zset(const std::string& cmd,
         if (cmd == "ZRANK" && args.size() >= 3)
             return RespEncoder::integer(
                 zsets_.zrank(args[1], args[2]));
+        if (cmd == "BGSAVE") {
+            persistence_.bgsave();
+            return RespEncoder::simple_string("Background saving started");
+        }
+
+        if (cmd == "BGRESTORE") {
+            bool ok = persistence_.load();
+            return ok ? RespEncoder::simple_string("OK")
+                    : RespEncoder::error("no snapshot file found");
+        }
+
+        if (cmd == "SAVE") {
+            bool ok = persistence_.save();
+            return ok ? RespEncoder::simple_string("OK")
+                    : RespEncoder::error("save failed");
+        }
+
+        
 
     } catch (const std::exception& e) {
         return RespEncoder::error(std::string("bad args: ") + e.what());

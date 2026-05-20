@@ -55,3 +55,16 @@ void KVEngine::tick() {
     for (auto& key : ttl_.evict_expired())
         map_.del(key);
 }
+
+std::vector<std::tuple<std::string,std::string,int64_t>>
+KVEngine::all_entries() const {
+    std::vector<std::tuple<std::string,std::string,int64_t>> result;
+    for (size_t i = 0; i < map_.capacity(); i++) {
+        auto& entry = map_.entry_at(i);          // we add this below
+        if (entry.empty()) continue;
+        Ms exp = ttl_.get_expiry(entry.key);
+        if (exp >= 0 && exp <= now_ms()) continue; // skip expired
+        result.push_back({entry.key, entry.val, exp});
+    }
+    return result;
+}

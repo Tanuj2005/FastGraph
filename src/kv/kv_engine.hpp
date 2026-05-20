@@ -3,6 +3,7 @@
 #include "kv/ttl.hpp"
 #include <string>
 #include <optional>
+#include <tuple>
 
 class KVEngine {
 public:
@@ -17,6 +18,9 @@ public:
     bool        persist(const std::string& key);
     Ms          ttl(const std::string& key);   // ms remaining, -1=none, -2=missing
     size_t      size() const { return map_.size(); }
+
+    std::vector<std::tuple<std::string,std::string,int64_t>>
+    all_entries() const;
 
     // Call from event loop — evicts expired keys
     void        tick();

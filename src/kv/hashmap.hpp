@@ -23,6 +23,8 @@ public:
     RobinHoodMap( const RobinHoodMap& ) = delete ;
     RobinHoodMap& operator=( const RobinHoodMap& ) = delete ;
 
+    const Entry& entry_at(size_t idx) const { return entries_[idx]; }
+
     bool set( const std::string& key, const std::string& val ) ;
     std::string* get( const std::string& key ) ;
     bool del( const std:: string& key ) ;

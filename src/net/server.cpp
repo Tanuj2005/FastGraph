@@ -7,10 +7,15 @@
 #include <cstdio>
 #include <cerrno>
 
-Server::Server(int port, size_t num_threads)
-    : port_(port), listen_fd_(-1), dispatcher_(kv_, graph_, zsets_), pool_(num_threads)  {}
+Server::Server(const Config& cfg)
+    : port_(cfg.port), listen_fd_(-1),
+      cfg_(cfg),
+      dispatcher_(kv_, graph_, zsets_, persistence_),
+      pool_(cfg.num_threads),
+      persistence_(kv_, graph_, cfg.rdb_path) {}
 
 void Server::start() {
+    persistence_.load();
     listen_fd_ = make_listen_fd(port_);
 
     reactor_.add(listen_fd_, EPOLLIN, [this](int, uint32_t) {
@@ -18,7 +23,16 @@ void Server::start() {
     });
 
     schedule_tick();
-    printf("FastGraph listening on :%d\n", port_);
+
+    // Auto-snapshot using config interval
+    int interval_ms = cfg_.snapshot_interval * 1000;
+    snap_fn_ = [this, interval_ms]() {
+        pool_.submit([this]() { persistence_.save(); });
+        reactor_.add_timer(interval_ms, snap_fn_);
+    };
+    reactor_.add_timer(interval_ms, snap_fn_);
+
+    printf("FastGraph listening on :%d\n", cfg_.port);
     reactor_.run();
 }
 

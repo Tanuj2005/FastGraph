@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include "index/property_index.hpp"
 
+#include <tuple>
+
 class GraphEngine {
 public:
     // Node operations
@@ -52,6 +54,9 @@ public:
     // Index a numeric property manually
     void index_property(const std::string& label, const std::string& prop,
                         double value, int node_id);
+
+    std::vector<std::tuple<int,std::string,std::string>> all_nodes() const;
+    std::vector<std::tuple<int,int,std::string,float>>   all_edges() const;
 
 private:
     void compact();

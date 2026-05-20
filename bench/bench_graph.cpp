@@ -1,120 +1,133 @@
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
 #include <chrono>
-#include <string>
-#include <vector>
 #include <functional>
+#include <string>
+#include "graph/graph_engine.hpp"
+#include "graph/bfs.hpp"
+#include "graph/dijkstra.hpp"
+#include "graph/dfs.hpp"
 
-// Raw TCP client — sends RESP, reads response
-struct Client {
-    int fd;
+using Clock = std::chrono::high_resolution_clock;
 
-    Client() {
-        fd = socket(AF_INET, SOCK_STREAM, 0);
-        sockaddr_in addr{};
-        addr.sin_family = AF_INET;
-        addr.sin_port   = htons(6379);
-        inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
-        connect(fd, (sockaddr*)&addr, sizeof(addr));
-    }
-
-    ~Client() { close(fd); }
-
-    std::string send_cmd(const std::vector<std::string>& args) {
-        std::string req = "*" + std::to_string(args.size()) + "\r\n";
-        for (auto& a : args)
-            req += "$" + std::to_string(a.size()) + "\r\n" + a + "\r\n";
-        write(fd, req.data(), req.size());
-
-        char buf[4096];
-        ssize_t n = read(fd, buf, sizeof(buf));
-        return n > 0 ? std::string(buf, n) : "";
-    }
-};
-
-using Clock = std::chrono::steady_clock;
-
-double bench(const std::string& name, int iterations,
-             std::function<void(Client&, int)> fn) {
-    Client c;
-    auto start = Clock::now();
-    for (int i = 0; i < iterations; i++) fn(c, i);
-    double ms = std::chrono::duration_cast<std::chrono::microseconds>(
-        Clock::now() - start).count() / 1000.0;
-    double ops = iterations / (ms / 1000.0);
-    printf("%-30s %7d ops  %8.1f ms  %10.0f ops/sec\n",
-           name.c_str(), iterations, ms, ops);
+static double bench(const char* name, int n,
+                    std::function<void()> fn) {
+    auto t1 = Clock::now();
+    for (int i = 0; i < n; i++) fn();
+    auto t2   = Clock::now();
+    double ms = std::chrono::duration<double,
+                std::milli>(t2 - t1).count();
+    double ops = (n / ms) * 1000.0;
+    printf("%-35s %8.0f ops/sec  (%6.1f ms)\n", name, ops, ms);
     return ops;
 }
 
-int main() {
-    int N = 10000;
-    printf("FastGraph Benchmark — %d iterations each\n", N);
-    printf("%-30s %7s  %10s  %12s\n", "operation", "ops", "time", "ops/sec");
-    printf("%s\n", std::string(65, '-').c_str());
+// Build a random graph with num_nodes nodes and avg_degree edges per node
+void build_random_graph(GraphEngine& g, int num_nodes, int avg_degree) {
+    for (int i = 0; i < num_nodes; i++)
+        g.add_node(i, "Person", "{}");
 
-    // Pre-populate nodes for read benchmarks
+    std::mt19937 rng(42);
+    int edges = num_nodes * avg_degree;
+    for (int i = 0; i < edges; i++) {
+        int from   = rng() % num_nodes;
+        int to     = rng() % num_nodes;
+        float w    = 1.0f + (rng() % 10);
+        g.add_edge(from, to, "KNOWS", w);
+    }
+}
+
+int main() {
+    printf("=== GraphEngine microbenchmarks ===\n\n");
+
+    // Small graph — 1k nodes, degree 10
     {
-        Client c;
-        for (int i = 0; i < N; i++)
-            c.send_cmd({"GRAPH.ADD_NODE", std::to_string(i),
-                        "Person", "{\"name\":\"user" + std::to_string(i) + "\"}"});
-        // Linear edges: 0->1->2->...->N-1
-        for (int i = 0; i < N - 1; i++)
-            c.send_cmd({"GRAPH.ADD_EDGE", std::to_string(i),
-                        std::to_string(i+1), "KNOWS"});
+        printf("-- Small graph (1k nodes, deg=10) --\n");
+        GraphEngine g;
+        build_random_graph(g, 1000, 10);
+
+        bench("add_node x1000", 1, [&](){
+            // Already done above — just measure CSR compaction
+            g.csr();
+        });
+
+        bench("BFS path (random src/dst)", 1000, [&](){
+            bfs_path(g.graph_ref(), 0, 999);
+        });
+
+        bench("Dijkstra path (random)", 1000, [&](){
+            dijkstra_path(g.graph_ref(), 0, 999);
+        });
+
+        bench("BFS neighborhood hops=2", 1000, [&](){
+            bfs_neighborhood(g.graph_ref(), 0, 2);
+        });
+
+        bench("DFS component", 1000, [&](){
+            dfs_component(g.graph_ref(), 0);
+        });
+
+        bench("CSR BFS path", 1000, [&](){
+            bfs_path_csr(g.csr(), 0, 999);
+        });
+
+        bench("CSR Dijkstra path", 1000, [&](){
+            dijkstra_path_csr(g.csr(), 0, 999);
+        });
+
+        printf("\n");
     }
 
-    bench("GRAPH.ADD_NODE", N, [&](Client& c, int i) {
-        c.send_cmd({"GRAPH.ADD_NODE",
-                    std::to_string(N + i), "Company", "{}"});
-    });
+    // Medium graph — 10k nodes, degree 10
+    {
+        printf("-- Medium graph (10k nodes, deg=10) --\n");
+        GraphEngine g;
+        build_random_graph(g, 10000, 10);
+        g.csr();  // pre-compact
 
-    bench("GRAPH.HAS_NODE (hit)", N, [&](Client& c, int i) {
-        c.send_cmd({"GRAPH.HAS_NODE", std::to_string(i % N)});
-    });
+        bench("BFS path", 100, [&](){
+            bfs_path(g.graph_ref(), 0, 9999);
+        });
 
-    bench("GRAPH.HAS_NODE (miss)", N, [&](Client& c, int i) {
-        c.send_cmd({"GRAPH.HAS_NODE", std::to_string(N * 10 + i)});
-    });
+        bench("Dijkstra path", 100, [&](){
+            dijkstra_path(g.graph_ref(), 0, 9999);
+        });
 
-    bench("GRAPH.NEIGHBORS", N, [&](Client& c, int i) {
-        c.send_cmd({"GRAPH.NEIGHBORS", std::to_string(i % N)});
-    });
+        bench("CSR BFS path", 100, [&](){
+            bfs_path_csr(g.csr(), 0, 9999);
+        });
 
-    bench("GRAPH.NODE (metadata)", N, [&](Client& c, int i) {
-        c.send_cmd({"GRAPH.NODE", std::to_string(i % N)});
-    });
+        bench("CSR Dijkstra path", 100, [&](){
+            dijkstra_path_csr(g.csr(), 0, 9999);
+        });
 
-    bench("GRAPH.PATH (short 5 hops)", 1000, [&](Client& c, int i) {
-        int src = (i * 7) % (N - 10);
-        c.send_cmd({"GRAPH.PATH",
-                    std::to_string(src), std::to_string(src + 5)});
-    });
+        bench("BFS neighborhood hops=3", 100, [&](){
+            bfs_neighborhood(g.graph_ref(), 0, 3);
+        });
 
-    bench("GRAPH.WPATH (short 5 hops)", 1000, [&](Client& c, int i) {
-        int src = (i * 7) % (N - 10);
-        c.send_cmd({"GRAPH.WPATH",
-                    std::to_string(src), std::to_string(src + 5)});
-    });
+        printf("\n");
+    }
 
-    bench("GRAPH.NEIGHBORHOOD 2 hops", 1000, [&](Client& c, int i) {
-        c.send_cmd({"GRAPH.NEIGHBORHOOD",
-                    std::to_string(i % (N/2)), "2"});
-    });
+    // Large graph — 100k nodes, degree 5
+    {
+        printf("-- Large graph (100k nodes, deg=5) --\n");
+        GraphEngine g;
+        build_random_graph(g, 100000, 5);
+        g.csr();
 
-    bench("SET (KV baseline)", N, [&](Client& c, int i) {
-        c.send_cmd({"SET", "key" + std::to_string(i), "val"});
-    });
+        bench("CSR BFS path", 10, [&](){
+            bfs_path_csr(g.csr(), 0, 99999);
+        });
 
-    bench("GET (KV baseline)", N, [&](Client& c, int i) {
-        c.send_cmd({"GET", "key" + std::to_string(i)});
-    });
+        bench("CSR Dijkstra path", 10, [&](){
+            dijkstra_path_csr(g.csr(), 0, 99999);
+        });
+
+        bench("BFS neighborhood hops=2", 10, [&](){
+            bfs_neighborhood(g.graph_ref(), 0, 2);
+        });
+
+        printf("\n");
+    }
 
     return 0;
 }

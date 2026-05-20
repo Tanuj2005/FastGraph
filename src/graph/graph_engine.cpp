@@ -64,3 +64,20 @@ void GraphEngine::index_property(const std::string& label,
                                   double value, int node_id) {
     prop_index_.add(label, prop, value, node_id);
 }
+
+std::vector<std::tuple<int,std::string,std::string>>
+GraphEngine::all_nodes() const {
+    std::vector<std::tuple<int,std::string,std::string>> result;
+    for (auto& [id, meta] : graph_.all_meta())
+        result.push_back({id, meta.label, meta.props});
+    return result;
+}
+
+std::vector<std::tuple<int,int,std::string,float>>
+GraphEngine::all_edges() const {
+    std::vector<std::tuple<int,int,std::string,float>> result;
+    for (auto& [from, edges] : graph_.all_adj())
+        for (auto& e : edges)
+            result.push_back({from, e.to, e.rel_type, e.weight});
+    return result;
+}

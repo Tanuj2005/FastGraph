@@ -7,10 +7,12 @@
 #include "graph/graph_engine.hpp"
 #include "sorted_set/sorted_set_engine.hpp"
 #include "thread/thread_pool.hpp"
+#include "persistence/persistence.hpp"
+#include "config/config.hpp"
 
 class Server {
 public:
-    explicit Server(int port, size_t num_threads = 4);
+    explicit Server(const Config& cfg);
     void start();
 
 private:
@@ -21,7 +23,8 @@ private:
     void try_parse(Conn* c);
     void close_conn(Conn* c);
     void schedule_tick();
-
+    std::function<void()> snap_fn_;
+   
     static int  make_listen_fd(int port);
     static void set_nonblocking(int fd);
 
@@ -33,5 +36,7 @@ private:
     Dispatcher  dispatcher_;
     SortedSetEngine zsets_;
     ThreadPool pool_;
+    Persistence persistence_;
+    Config cfg_;
     std::unordered_map<int, Conn*> conns_;
 };

@@ -62,6 +62,24 @@ set(test_skiplist_EXTRA   ${INDEX_SOURCES})
 set(test_ttl_EXTRA        ${KV_SOURCES})
 set(test_integration_EXTRA ${PROTOCOL_SOURCES} ${KV_SOURCES})
 
+set(BENCH_SOURCES_KV
+    src/kv/hashmap.cpp
+    src/kv/ttl.cpp
+    src/kv/kv_engine.cpp
+)
+
+set(BENCH_SOURCES_GRAPH
+    ${GRAPH_SOURCES}
+)
+
+add_executable(bench_kv    bench/bench_kv.cpp    ${BENCH_SOURCES_KV})
+add_executable(bench_graph bench/bench_graph.cpp ${BENCH_SOURCES_GRAPH})
+
+target_include_directories(bench_kv    PRIVATE src/)
+target_include_directories(bench_graph PRIVATE src/)
+
+set_target_properties(bench_kv bench_graph PROPERTIES
+    COMPILE_FLAGS "-O2")
 
 
 file(GLOB TEST_SOURCES "tests/*.cpp")
@@ -70,12 +88,4 @@ foreach(TEST_FILE ${TEST_SOURCES})
     add_executable(${TEST_NAME} ${TEST_FILE} ${${TEST_NAME}_EXTRA})
     target_include_directories(${TEST_NAME} PRIVATE src/)
     add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
-endforeach()
-
-# Benchmarks
-file(GLOB BENCH_SOURCES "bench/*.cpp")
-foreach(BENCH_FILE ${BENCH_SOURCES})
-    get_filename_component(BENCH_NAME ${BENCH_FILE} NAME_WE)
-    add_executable(${BENCH_NAME} ${BENCH_FILE})
-    target_include_directories(${BENCH_NAME} PRIVATE src/)
 endforeach()
