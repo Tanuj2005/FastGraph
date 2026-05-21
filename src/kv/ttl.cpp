@@ -3,7 +3,7 @@
 
 Ms now_ms() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now().time_since_epoch()).count();
+        std::chrono::steady_clock::now().time_since_epoch()).count() ;
 }
 
 void TTLManager::set_expiry( const std::string& key, Ms ttl_ms ) {

@@ -7,7 +7,7 @@
 #include <cstdio>
 #include <cerrno>
 
-Server::Server(const Config& cfg)
+Server::Server( const Config& cfg )
     : port_(cfg.port), listen_fd_(-1),
       cfg_(cfg),
       dispatcher_(kv_, graph_, zsets_, persistence_),
@@ -15,8 +15,9 @@ Server::Server(const Config& cfg)
       persistence_(kv_, graph_, cfg.rdb_path) {}
 
 void Server::start() {
-    persistence_.load();
-    listen_fd_ = make_listen_fd(port_);
+
+    persistence_.load() ;
+    listen_fd_ = make_listen_fd(port_) ;
 
     reactor_.add(listen_fd_, EPOLLIN, [this](int, uint32_t) {
         on_accept();
@@ -25,97 +26,97 @@ void Server::start() {
     schedule_tick();
 
     // Auto-snapshot using config interval
-    int interval_ms = cfg_.snapshot_interval * 1000;
+    int interval_ms = cfg_.snapshot_interval * 1000 ;
     snap_fn_ = [this, interval_ms]() {
-        pool_.submit([this]() { persistence_.save(); });
-        reactor_.add_timer(interval_ms, snap_fn_);
+        pool_.submit([this]() { persistence_.save() ; }) ;
+        reactor_.add_timer(interval_ms, snap_fn_) ;
     };
-    reactor_.add_timer(interval_ms, snap_fn_);
+    reactor_.add_timer(interval_ms, snap_fn_) ;
 
-    printf("FastGraph listening on :%d\n", cfg_.port);
-    reactor_.run();
+    printf("FastGraph listening on :%d\n", cfg_.port) ;
+    reactor_.run() ;
 }
 
 void Server::on_accept() {
     while (true) {
-        int fd = accept(listen_fd_, nullptr, nullptr);
-        if (fd < 0) break;
-        set_nonblocking(fd);
-        Conn* c = conn_pool_.make(fd); 
-        conns_[fd] = c;
+        int fd = accept(listen_fd_, nullptr, nullptr) ;
+        if (fd < 0) break ;
+        set_nonblocking(fd) ;
+        Conn* c = conn_pool_.make(fd) ; 
+        conns_[fd] = c ;
         reactor_.add(fd, EPOLLIN, [this](int fd, uint32_t events) {
-            on_io(fd, events);
+            on_io(fd, events) ;
         });
     }
 }
 
 void Server::on_io(int fd, uint32_t events) {
-    auto it = conns_.find(fd);
-    if (it == conns_.end()) return;
-    Conn* c = it->second;
-    if (events & EPOLLIN)  do_read(c);
-    if (events & EPOLLOUT) do_write(c);
-    if (c->state == ConnState::Closing) close_conn(c);
+    auto it = conns_.find(fd) ;
+    if (it == conns_.end()) return ;
+    Conn* c = it->second ;
+    if (events & EPOLLIN)  do_read(c) ;
+    if (events & EPOLLOUT) do_write(c) ;
+    if (c->state == ConnState::Closing) close_conn(c) ;
 }
 
 void Server::do_read(Conn* c) {
-    char buf[4096];
+    char buf[4096] ;
     while (true) {
-        ssize_t n = read(c->fd, buf, sizeof(buf));
+        ssize_t n = read(c->fd, buf, sizeof(buf)) ;
         if (n > 0) {
-            c->read_buf.append(buf, n);
+            c->read_buf.append(buf, n) ;
         } else if (n == 0) {
-            c->state = ConnState::Closing; return;
+            c->state = ConnState::Closing; return ;
         } else {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-            c->state = ConnState::Closing; return;
+            if ( errno == EAGAIN || errno == EWOULDBLOCK ) break ;
+            c->state = ConnState::Closing; return ;
         }
     }
-    try_parse(c);
+    try_parse(c) ;
 }
 
 void Server::try_parse(Conn* c) {
     while (true) {
-        std::vector<std::string> args;
-        auto res = c->parser.parse(c->read_buf, args);
-        if (res == ParseResult::Incomplete) break;
+        std::vector<std::string> args ;
+        auto res = c->parser.parse(c->read_buf, args) ;
+        if (res == ParseResult::Incomplete) break ;
         if (res == ParseResult::Error) {
-            c->write_buf += RespEncoder::error("protocol error");
-            c->state = ConnState::Closing;
-            break;
+            c->write_buf += RespEncoder::error("protocol error") ;
+            c->state = ConnState::Closing ;
+            break ;
         }
 
         // Offload heavy graph traversals to thread pool
-        std::string cmd = args.empty() ? "" : args[0];
-        for (auto& ch : cmd) ch = toupper(ch);
+        std::string cmd = args.empty() ? "" : args[0] ;
+        for (auto& ch : cmd) ch = toupper(ch) ;
 
         bool heavy = (cmd == "GRAPH.PATH"   ||
                       cmd == "GRAPH.WPATH"  ||
                       cmd == "GRAPH.DISTANCES" ||
                       cmd == "GRAPH.COMPONENT" ||
-                      cmd == "GRAPH.NEIGHBORHOOD");
+                      cmd == "GRAPH.NEIGHBORHOOD") ;
 
         if (heavy) {
-            int fd = c->fd;
+            int fd = c->fd ;
             pool_.submit([this, args, c]() {
-                std::string result = dispatcher_.dispatch(args);
+                std::string result = dispatcher_.dispatch(args) ;
                 reactor_.post([this, c, result]() {
                     // Check conn still alive
-                    if (conns_.find(c->fd) == conns_.end()) return;
-                    c->write_buf += result;
-                    c->state = ConnState::Writing;
-                    reactor_.modify(c->fd, EPOLLIN | EPOLLOUT);
+                    if (conns_.find(c->fd) == conns_.end()) return ;
+                    c->write_buf += result ;
+                    c->state = ConnState::Writing ;
+                    reactor_.modify(c->fd, EPOLLIN | EPOLLOUT) ;
                 });
             });
             // Don't add to write_buf here — async
             continue;
         }
 
-        c->write_buf += dispatcher_.dispatch(args);
+        c->write_buf += dispatcher_.dispatch(args) ;
     }
-    if (!c->write_buf.empty()) {
-        c->state = ConnState::Writing;
-        reactor_.modify(c->fd, EPOLLIN | EPOLLOUT);
+    if ( !c->write_buf.empty() ) {
+        c->state = ConnState::Writing ;
+        reactor_.modify(c->fd, EPOLLIN | EPOLLOUT) ;
     }
 }
 

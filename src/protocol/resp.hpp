@@ -3,8 +3,8 @@
 #include <vector>
 
 enum class ParseResult {
-    Complete,
-    Incomplete,
+    Complete ,
+    Incomplete ,
     Error
 };
 

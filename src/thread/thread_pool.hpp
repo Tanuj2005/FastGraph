@@ -21,28 +21,28 @@ public:
 
     ~ThreadPool() {
         {
-            std::unique_lock<std::mutex> lock(mutex_);
-            stop_ = true;
+            std::unique_lock<std::mutex> lock(mutex_) ;
+            stop_ = true ;
         }
-        cv_.notify_all();
-        for (auto& t : workers_) t.join();
+        cv_.notify_all() ;
+        for (auto& t : workers_) t.join() ;
     }
 
-    ThreadPool(const ThreadPool&)            = delete;
-    ThreadPool& operator=(const ThreadPool&) = delete;
+    ThreadPool(const ThreadPool&) = delete ;
+    ThreadPool& operator=(const ThreadPool&) = delete ;
 
-    void submit(std::function<void()> task) {
+    void submit( std::function<void()> task ) {
         {
-            std::unique_lock<std::mutex> lock(mutex_);
-            if (stop_) throw std::runtime_error("pool is stopped");
-            queue_.push(std::move(task));
+            std::unique_lock<std::mutex> lock(mutex_) ;
+            if (stop_) throw std::runtime_error("pool is stopped") ;
+            queue_.push(std::move(task)) ;
         }
-        cv_.notify_one();
+        cv_.notify_one() ;
     }
 
     size_t queue_size() const {
-        std::unique_lock<std::mutex> lock(mutex_);
-        return queue_.size();
+        std::unique_lock<std::mutex> lock(mutex_) ;
+        return queue_.size() ; 
     }
 
 private:   
@@ -53,7 +53,7 @@ private:
                 std::unique_lock<std::mutex> lock( mutex_ ) ;
                 cv_.wait( lock, [this] {
                     return stop_ || !queue_.empty() ;
-                });
+                }) ;
                 if ( stop_ && queue_.empty()) return ;
                 task = std::move( queue_.front()) ;
                 queue_.pop() ;

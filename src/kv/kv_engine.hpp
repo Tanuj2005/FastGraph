@@ -12,10 +12,10 @@ public:
              Ms ttl_ms = -1);
 
     std::optional<std::string> get(const std::string& key);
-    bool        del(const std::string& key);
-    bool        exists(const std::string& key);
-    bool        expire(const std::string& key, Ms ttl_ms);
-    bool        persist(const std::string& key);
+    bool del(const std::string& key);
+    bool exists(const std::string& key);
+    bool expire(const std::string& key, Ms ttl_ms);
+    bool persist(const std::string& key);
     Ms          ttl(const std::string& key);   // ms remaining, -1=none, -2=missing
     size_t      size() const { return map_.size(); }
 

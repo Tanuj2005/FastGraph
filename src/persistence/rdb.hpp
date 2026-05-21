@@ -26,7 +26,7 @@ public:
                      GraphEngine&       graph);
 
 private:
-    static constexpr uint64_t MAGIC      = 0x464153544752FF00ULL;
-    static constexpr uint32_t VERSION    = 1;
-    static constexpr uint64_t EOF_MARKER = 0xFFFFFFFFFFFFFFFFULL;
+    static constexpr uint64_t MAGIC = 0x464153544752FF00ULL ;
+    static constexpr uint32_t VERSION = 1 ;
+    static constexpr uint64_t EOF_MARKER = 0xFFFFFFFFFFFFFFFFULL ;
 };

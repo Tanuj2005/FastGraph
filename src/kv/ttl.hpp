@@ -5,9 +5,9 @@
 #include <cstdint>
 #include <chrono>
 
-using Ms = int64_t;
+using Ms = int64_t ;
 
-Ms now_ms();
+Ms now_ms() ;
 
 struct TTLEntry {
     Ms expires_at ;

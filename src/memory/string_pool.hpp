@@ -6,9 +6,7 @@
 
 class StringPool {
 public:
-    explicit StringPool( size_t arena_size = 4 * 1024 * 1024 ) : arena_( arena_size ) {
-
-    }
+    explicit StringPool( size_t arena_size = 4 * 1024 * 1024 ) : arena_( arena_size ) {}
 
     const char* intern( const std::string& s ) {
         auto it = table_.find( s ) ;

@@ -11,19 +11,19 @@ public:
         : kv_(kv), graph_(graph), path_(path) {}
 
     // Blocking save — call from thread pool
-    bool save();
+    bool save() ;
 
     // Load on startup — blocking, returns false if no file
-    bool load();
+    bool load() ; 
 
     // Fork-based background save — returns immediately
-    bool bgsave();
+    bool bgsave() ;
 
-    bool is_saving() const { return saving_.load(); }
+    bool is_saving() const { return saving_.load() ; }
 
 private:
-    KVEngine&    kv_;
-    GraphEngine& graph_;
-    std::string  path_;
-    std::atomic<bool> saving_{false};
+    KVEngine& kv_ ;
+    GraphEngine& graph_ ;
+    std::string  path_ ;
+    std::atomic<bool> saving_{false} ;
 };
