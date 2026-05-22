@@ -2,6 +2,7 @@
 #include "protocol/encoder.hpp"
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <cstdio>
@@ -42,6 +43,10 @@ void Server::on_accept() {
         int fd = accept(listen_fd_, nullptr, nullptr) ;
         if (fd < 0) break ;
         set_nonblocking(fd) ;
+
+        int opt = 1;
+        setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
+
         Conn* c = conn_pool_.make(fd) ; 
         conns_[fd] = c ;
         reactor_.add(fd, EPOLLIN, [this](int fd, uint32_t events) {
@@ -60,7 +65,7 @@ void Server::on_io(int fd, uint32_t events) {
 }
 
 void Server::do_read(Conn* c) {
-    char buf[4096] ;
+    char buf[16384] ;
     while (true) {
         ssize_t n = read(c->fd, buf, sizeof(buf)) ;
         if (n > 0) {
@@ -77,8 +82,8 @@ void Server::do_read(Conn* c) {
 
 void Server::try_parse(Conn* c) {
     while (true) {
-        std::vector<std::string> args ;
-        auto res = c->parser.parse(c->read_buf, args) ;
+        c->args.clear() ;
+        auto res = c->parser.parse(c->read_buf, c->args) ;
         if (res == ParseResult::Incomplete) break ;
         if (res == ParseResult::Error) {
             c->write_buf += RespEncoder::error("protocol error") ;
@@ -87,19 +92,15 @@ void Server::try_parse(Conn* c) {
         }
 
         // Offload heavy graph traversals to thread pool
-        std::string cmd = args.empty() ? "" : args[0] ;
+        std::string cmd = c->args.empty() ? "" : c->args[0] ;
         for (auto& ch : cmd) ch = toupper(ch) ;
 
-        bool heavy = (cmd == "GRAPH.PATH"   ||
-                      cmd == "GRAPH.WPATH"  ||
-                      cmd == "GRAPH.DISTANCES" ||
-                      cmd == "GRAPH.COMPONENT" ||
-                      cmd == "GRAPH.NEIGHBORHOOD") ;
+        bool heavy = false; /* Disabled thread-pool offloading for small graphs to reduce context switch latency */
 
         if (heavy) {
-            int fd = c->fd ;
-            pool_.submit([this, args, c]() {
-                std::string result = dispatcher_.dispatch(args) ;
+            std::vector<std::string> copied_args = c->args ;
+            pool_.submit([this, copied_args, c]() {
+                std::string result = dispatcher_.dispatch(copied_args) ;
                 reactor_.post([this, c, result]() {
                     // Check conn still alive
                     if (conns_.find(c->fd) == conns_.end()) return ;
@@ -112,19 +113,23 @@ void Server::try_parse(Conn* c) {
             continue;
         }
 
-        c->write_buf += dispatcher_.dispatch(args) ;
+        c->write_buf += dispatcher_.dispatch(c->args) ;
     }
-    if ( !c->write_buf.empty() ) {
+    if ( c->write_offset < c->write_buf.size() ) {
         c->state = ConnState::Writing ;
         reactor_.modify(c->fd, EPOLLIN | EPOLLOUT) ;
     }
 }
 
 void Server::do_write(Conn* c) {
-    while (!c->write_buf.empty()) {
-        ssize_t n = write(c->fd, c->write_buf.data(), c->write_buf.size());
+    while (c->write_offset < c->write_buf.size()) {
+        ssize_t n = write(c->fd, c->write_buf.data() + c->write_offset, c->write_buf.size() - c->write_offset);
         if (n > 0) {
-            c->write_buf.erase(0, n);
+            c->write_offset += n;
+            if (c->write_offset == c->write_buf.size()) {
+                c->write_buf.clear();
+                c->write_offset = 0;
+            }
         } else {
             if (errno == EAGAIN || errno == EWOULDBLOCK) return;
             c->state = ConnState::Closing; return;

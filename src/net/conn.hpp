@@ -9,6 +9,8 @@ struct Conn {
     ConnState state = ConnState::Reading ;
     std::string read_buf ;
     std::string write_buf ;
+    size_t write_offset = 0 ;
+    std::vector<std::string> args ;
     RespParser parser ;
 
     explicit Conn(int fd) : fd(fd) {}

@@ -5,9 +5,12 @@ import random
 
 r = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
-def bench(name, n, fn):
+def bench(name, n, cmd, *args):
+    pipe = r.pipeline(transaction=False)
     t1  = time.perf_counter()
-    for _ in range(n): fn()
+    for _ in range(n):
+        pipe.execute_command(cmd, *args)
+    pipe.execute()
     t2  = time.perf_counter()
     ms  = (t2 - t1) * 1000
     ops = (n / ms) * 1000
@@ -35,19 +38,19 @@ def run_suite(label, num_nodes, avg_degree, n_iter):
 
     bench("BFS path",
           n_iter,
-          lambda: r.execute_command("GRAPH.PATH", 0, num_nodes - 1))
+          "GRAPH.PATH", 0, num_nodes - 1)
 
     bench("Weighted path (Dijkstra)",
           n_iter,
-          lambda: r.execute_command("GRAPH.WPATH", 0, num_nodes - 1))
+          "GRAPH.WPATH", 0, num_nodes - 1)
 
     bench("Neighborhood hops=2",
           n_iter,
-          lambda: r.execute_command("GRAPH.NEIGHBORHOOD", 0, 2))
+          "GRAPH.NEIGHBORHOOD", 0, 2)
 
     bench("Component",
           min(n_iter, 20),
-          lambda: r.execute_command("GRAPH.COMPONENT", 0))
+          "GRAPH.COMPONENT", 0)
 
 if __name__ == "__main__":
     print("=== FastGraph network benchmarks ===")
