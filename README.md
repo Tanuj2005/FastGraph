@@ -40,7 +40,6 @@ redis-cli -p 6379 PING
 ```
 
 ## Benchmarks 📊
-*(Replace the following image links with your actual benchmark screenshots after uploading them to your repository!)*
 
 ### 1. Typical KV and Sorted Set Throughput (TCP)
 FastGraph handles standard Redis KV and Sorted Set operations exceptionally well. You can benchmark it using `redis-benchmark`:
