@@ -10,7 +10,7 @@ It combines the blinding speed of a C++ epoll-based TCP server with advanced gra
 - **Graph Engine**: Supports Dynamic Graphs and CSR (Compressed Sparse Row) representation for high-speed paths (BFS/DFS/Dijkstra), components, and neighborhoods.
 - **Sorted Sets**: Implemented from scratch using a fast Skip List.
 - **Networking**: Custom non-blocking `epoll` reactor event loop.
-- **Persistence**: RDB-style background saving (`BGSAVE`) via `fork` + `mmap`.
+- **Persistence**: RDB-style background saving (`BGSAVE`) via `fork` .
 
 ## Build & Run Guide
 
